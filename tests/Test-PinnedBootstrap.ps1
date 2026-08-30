@@ -5,8 +5,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$url = 'https://raw.githubusercontent.com/JonAWDav/jonny-workstation-bootstrap/2ecbc6d5a20adbbd9bda6be37a5a9b34fdb0ff3a/bootstrap.ps1'
-$expectedHash = '404AD13735F8ACAD63C8FAB69581BDA30B9AD25DDD4E45DA3D86EAB4B18472C6'
+$url = 'https://raw.githubusercontent.com/JonAWDav/jonny-workstation-bootstrap/5ead9b442550e7fdcb1c87e6bb39ebc1b53d3b0f/bootstrap.ps1'
+$expectedHash = '40E9AE061519DD370251941A469B5DE991721D3FF7C379DD425B7D46EED7C593'
 $downloadPath = 'D:\Downloads\Jonny-Workstation-Bootstrap-pinned-test.ps1'
 
 if ($BootstrapPath) {
@@ -29,7 +29,7 @@ if ($process.ExitCode -ne 0) {
 
 [pscustomobject]@{
     Pass = $true
-    Commit = '2ecbc6d5a20adbbd9bda6be37a5a9b34fdb0ff3a'
+    Commit = '5ead9b442550e7fdcb1c87e6bb39ebc1b53d3b0f'
     SHA256 = $actualHash
     SpawnExitCode = $process.ExitCode
 }
