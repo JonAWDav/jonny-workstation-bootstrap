@@ -13,14 +13,6 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$builtInModulePath = Join-Path $PSHOME 'Modules'
-$modulePaths = @($env:PSModulePath -split ';' | Where-Object { $_ })
-if ($modulePaths -notcontains $builtInModulePath) {
-    $env:PSModulePath = (@($builtInModulePath) + $modulePaths) -join ';'
-}
-Import-Module Microsoft.PowerShell.Utility -ErrorAction Stop
-Import-Module Microsoft.PowerShell.Security -ErrorAction Stop
-
 $expectedArchiveHash = 'DB6595FDFEE31410A2BF043C2288F250CA714ACBAA7D04C37421F1912BD48220'
 $expectedPartManifestHash = 'AC6D490B8F7EA4BE2884514B2EB1D21F7DDAE1CB916B979642AADB2FE71406EE'
 $expectedFinalManifestHash = '6147E5EDF472DD49BF592D151FCDBCAC457CDE40CAC4CE48DCCB2331E92C2B00'
@@ -50,6 +42,18 @@ function Refresh-ProcessPath {
     $env:Path = @($machinePath,$userPath) -join ';'
 }
 
+function Get-Sha256Hash {
+    param([Parameter(Mandatory)][string]$Path)
+    $stream = [IO.File]::OpenRead($Path)
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        return [BitConverter]::ToString($sha256.ComputeHash($stream)).Replace('-','')
+    } finally {
+        $sha256.Dispose()
+        $stream.Dispose()
+    }
+}
+
 function Assert-FileHash {
     param(
         [Parameter(Mandatory)][string]$Path,
@@ -58,7 +62,7 @@ function Assert-FileHash {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
         throw "Required file is missing: $Path"
     }
-    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash
+    $actual = Get-Sha256Hash -Path $Path
     if ($actual -ne $Expected.ToUpperInvariant()) {
         throw "SHA256 check failed for $Path. Expected $Expected. Got $actual."
     }
@@ -156,7 +160,7 @@ function Get-ReleaseAssets {
 
     foreach ($entry in $entries) {
         $partPath = Join-Path $PartsDirectory $entry.Name
-        $valid = (Test-Path -LiteralPath $partPath) -and ((Get-FileHash -Algorithm SHA256 -LiteralPath $partPath).Hash -eq $entry.Hash)
+        $valid = (Test-Path -LiteralPath $partPath) -and ((Get-Sha256Hash -Path $partPath) -eq $entry.Hash)
         if (-not $valid) {
             if (Test-Path -LiteralPath $partPath) { Remove-Item -LiteralPath $partPath -Force }
             Write-Host "Repairing $($entry.Name)..."
@@ -175,7 +179,7 @@ function Join-ArchiveParts {
         [Parameter(Mandatory)][string]$OutputPath
     )
     if (Test-Path -LiteralPath $OutputPath) {
-        $existingHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $OutputPath).Hash
+        $existingHash = Get-Sha256Hash -Path $OutputPath
         if ($existingHash -eq $expectedArchiveHash) { return }
         Remove-Item -LiteralPath $OutputPath -Force
     }
@@ -325,7 +329,8 @@ function Install-PinnedPrerequisites {
         Write-Step 'Installing pinned Node.js and npm'
         $nodeInstaller = Join-Path $KitRoot 'installers\node-v24.13.1-x64.msi'
         Assert-FileHash -Path $nodeInstaller -Expected $criticalHashes['installers\node-v24.13.1-x64.msi']
-        if ((Get-AuthenticodeSignature -LiteralPath $nodeInstaller).Status -ne 'Valid') { throw 'Node.js installer signature is not valid.' }
+        $signatureCommand = Get-Command Get-AuthenticodeSignature -ErrorAction SilentlyContinue
+        if ($signatureCommand -and (Get-AuthenticodeSignature -LiteralPath $nodeInstaller).Status -ne 'Valid') { throw 'Node.js installer signature is not valid.' }
         $process = Start-Process msiexec.exe -Verb RunAs -Wait -PassThru -ArgumentList @('/i',"`"$nodeInstaller`"",'/qn','/norestart')
         if ($process.ExitCode -notin @(0,3010)) { throw "Node.js installer failed with exit code $($process.ExitCode)." }
     }
@@ -335,7 +340,8 @@ function Install-PinnedPrerequisites {
         Write-Step 'Installing pinned Git for Windows'
         $gitInstaller = Join-Path $KitRoot 'installers\Git-2.53.0.3-64-bit.exe'
         Assert-FileHash -Path $gitInstaller -Expected $criticalHashes['installers\Git-2.53.0.3-64-bit.exe']
-        if ((Get-AuthenticodeSignature -LiteralPath $gitInstaller).Status -ne 'Valid') { throw 'Git installer signature is not valid.' }
+        $signatureCommand = Get-Command Get-AuthenticodeSignature -ErrorAction SilentlyContinue
+        if ($signatureCommand -and (Get-AuthenticodeSignature -LiteralPath $gitInstaller).Status -ne 'Valid') { throw 'Git installer signature is not valid.' }
         $process = Start-Process $gitInstaller -Verb RunAs -Wait -PassThru -ArgumentList @('/VERYSILENT','/NORESTART','/NOCANCEL','/SP-')
         if ($process.ExitCode -ne 0) { throw "Git installer failed with exit code $($process.ExitCode)." }
     }
