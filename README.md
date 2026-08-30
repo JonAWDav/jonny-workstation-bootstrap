@@ -15,4 +15,12 @@ The private payload remains in `JonAWDav/jonny-workstation-payload` and requires
 - Desktop scheduled tasks stay disabled on the laptop.
 - The same command can be rerun after an interrupted download.
 
-The final pinned one-line command is added after the first immutable release commit is published.
+## One command
+
+Paste this entire line into PowerShell, or tell Codex to run it exactly with PowerShell:
+
+```powershell
+$u='https://raw.githubusercontent.com/JonAWDav/jonny-workstation-bootstrap/6faafdabc3c2eac24095610ac7e066f2d5ab9a72/bootstrap.ps1';$p='D:\Downloads\Jonny-Workstation-Bootstrap.ps1';if(-not(Test-Path -LiteralPath 'D:\')){throw 'This workstation requires a D drive.'};New-Item -ItemType Directory -Force -Path 'D:\Downloads'|Out-Null;Invoke-WebRequest -Uri $u -OutFile $p -UseBasicParsing;if((Get-FileHash -Algorithm SHA256 -LiteralPath $p).Hash -ne 'C481ABEB26550F3DA6EEEB1E2B4F5858E29CF7B346E5B255ABB1E3803656F91E'){throw 'Bootstrap SHA256 check failed.'};Start-Process powershell.exe -ArgumentList ('-NoExit -NoProfile -ExecutionPolicy Bypass -File "'+$p+'"')
+```
+
+The command opens a separate setup window so Codex can close safely when the restore reaches the local-history step. Rerun the same line if a download or login is interrupted.

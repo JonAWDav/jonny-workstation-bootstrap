@@ -13,6 +13,14 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+$builtInModulePath = Join-Path $PSHOME 'Modules'
+$modulePaths = @($env:PSModulePath -split ';' | Where-Object { $_ })
+if ($modulePaths -notcontains $builtInModulePath) {
+    $env:PSModulePath = (@($builtInModulePath) + $modulePaths) -join ';'
+}
+Import-Module Microsoft.PowerShell.Utility -ErrorAction Stop
+Import-Module Microsoft.PowerShell.Security -ErrorAction Stop
+
 $expectedArchiveHash = 'DB6595FDFEE31410A2BF043C2288F250CA714ACBAA7D04C37421F1912BD48220'
 $expectedPartManifestHash = 'AC6D490B8F7EA4BE2884514B2EB1D21F7DDAE1CB916B979642AADB2FE71406EE'
 $expectedFinalManifestHash = '6147E5EDF472DD49BF592D151FCDBCAC457CDE40CAC4CE48DCCB2331E92C2B00'
